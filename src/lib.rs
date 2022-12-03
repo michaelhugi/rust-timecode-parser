@@ -1,5 +1,4 @@
 extern crate core;
-
 use std::fmt::{Debug, Display, Formatter};
 use std::time::Duration;
 

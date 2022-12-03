@@ -22,8 +22,7 @@ impl PartialEq<Self> for LtcFrame {
 
 ///Implementations that are used to decode and encode timecode
 impl LtcFrame {
-    //const LTC_SYNC_WORD: u16 = 0b_1011_1111_1111_1100;
-         const LTC_SYNC_WORD: u16 = 0b_0011_1111_1111_1101;
+    const LTC_SYNC_WORD: u16 = 0b_0011_1111_1111_1101;
     #[cfg(test)]
     pub(crate) fn new_raw(sync_word: u16, data: u64) -> Self {
         Self {

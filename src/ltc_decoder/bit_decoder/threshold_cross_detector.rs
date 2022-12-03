@@ -157,12 +157,11 @@ impl<T: Sample> ThresholdCrossDetector<T> {
             ThresholdCross::None
         } else {
             //Sample bounds does not know the treshold for low and high bits at the moment
-            self.invalidate();
             ThresholdCross::None
         }
     }
     /// Used to invalidate the whole decoding system in case unexpected data is received.
-    fn invalidate(&mut self) {
+    pub(crate) fn invalidate(&mut self) {
         self.counting = false;
         self.is_high = None;
         self.count = 0;

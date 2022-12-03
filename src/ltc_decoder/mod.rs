@@ -25,20 +25,29 @@ impl<T> Sample for T where T: Zero + Ord + Clone + Copy + FromPrimitive + ToPrim
 pub struct LtcDecoder<T: Sample> {
     ltc_frame: LtcFrame,
     bit_decoder: BitDecoder<T>,
+    pub deb: Vec<String>,
 }
 
 impl<T: Sample> LtcDecoder<T> {
-    pub fn new<F: Into<f64>>(sample_rate: F) -> Self {
-        let sample_rate: f64 = sample_rate.into();
+    pub fn new() -> Self {
         Self {
             ltc_frame: LtcFrame::new_empty(),
-            bit_decoder: BitDecoder::new(sample_rate),
+            bit_decoder: BitDecoder::new(),
+            deb: vec![],
         }
     }
     /// Push received audio-sample-point one after another in this function. From time to time
     /// a Timecode-Frame will be returned to tell the current received timecode
     pub fn push_sample(&mut self, sample: T, index: usize, images: &mut [AudioImage]) -> Option<TimecodeFrame> {
-        if let Some(bit) = self.bit_decoder.push_sample(sample, index, images) {
+        if let Some(bit) = self.bit_decoder.push_sample(sample) {
+            images.iter_mut().for_each(|image|{
+                image.push_bit(index,Some(bit));
+            });
+            if bit {
+                self.deb.push("1".to_string());
+            } else {
+                self.deb.push("0".to_string());
+            }
             self.ltc_frame.shift_bit(bit);
             if let Some(data) = self.ltc_frame.get_data() {
                 return Some(data.into_ltc_frame());
@@ -78,7 +87,7 @@ mod tests {
     #[test]
     fn test_and_print_timecode() {
         let (sampling_rate, samples) = get_test_samples_48_14();
-        let mut decoder = LtcDecoder::<i32>::new(sampling_rate);
+        let mut decoder = LtcDecoder::<i32>::new();
         let mut index = 0;
 
         let mut images = [AudioImage::new(&samples, 0)];
@@ -91,6 +100,7 @@ mod tests {
             }
             index += 1;
         }
+       // println!("{:?}", decoder.deb.join(""));
         images[0].save("TC4814(0)");
     }
 

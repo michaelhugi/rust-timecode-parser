@@ -206,8 +206,8 @@ impl LtcFrameData {
     /// The overflow is needed to add it to the current SyncWord in LtcFrame to detect if the frame is complete
     pub(crate) fn shift_bit_with_overflow(&mut self, bit: bool) -> bool {
         let highest_bit = self.data.bit(63);
-        self.data = self.data << 1;
-        self.data.set_bit(0, bit);
+        self.data = self.data >> 1;
+        self.data.set_bit(63, bit);
         highest_bit
     }
 }
