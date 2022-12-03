@@ -20,6 +20,16 @@ pub(crate) struct SampleBounds<T: Sample> {
 }
 
 impl<T: Sample> SampleBounds<T> {
+    pub(crate) fn get_threshold(&self) -> Option<T> {
+        if self.valid {
+            Some(self.threshold)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T: Sample> SampleBounds<T> {
     /// Creates a new starter instance of SampleBounds
     pub(crate) fn new() -> SampleBounds<T> {
         Self {
@@ -145,19 +155,12 @@ mod tests {
                 if is_high != is_current_high {
                     is_current_high = is_high;
                     bit_count += 1;
-
-                    if (change_count < 7 || (change_count > 14 && change_count < 17) || change_count > 27) {
-                        let percent = sample_count as f32 / samples_len as f32;
-                        println!("{} -> {} -> {}%", change_count, bit_count, percent);
-                    }
                     change_count = 0;
                 } else {
                     change_count += 1;
                 }
             } else {
-                if validated {
-                    println!("???");
-                }
+                if validated {}
             }
         }
     }

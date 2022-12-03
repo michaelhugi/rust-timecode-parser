@@ -7,7 +7,7 @@ const MAX_BIT_DURATION_S: f64 = (530.0 + 2.0 / 3.0) / 1000000.0;
 
 /// Returns the max sample count to expect for a full bit in LTC code
 pub(crate) fn max_sample_count_for_bit(sample_rate: &f64) -> usize {
-    (sample_rate * MAX_BIT_DURATION_S) as usize +2
+    (sample_rate * MAX_BIT_DURATION_S) as usize +4
 }
 
 /// Returns the max sample count to expect for a full bit in LTC code

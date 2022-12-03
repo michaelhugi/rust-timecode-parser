@@ -1,14 +1,17 @@
 use crate::ltc_decoder::bit_decoder::sample_bounds::SampleBounds;
 use crate::ltc_decoder::bit_decoder::sample_rater::*;
 use crate::ltc_decoder::bit_decoder::zero_detector::ZeroDetector;
+use crate::ltc_decoder::print_decoder::AudioImage;
 use crate::ltc_decoder::Sample;
 
 mod sample_bounds;
 mod zero_detector;
 mod sample_rater;
+mod threshold_cross_detector;
 
 /// Reads sample by sample, detects the heartbeat of bits in ltc stream and returns 0s and 1s
 pub(crate) struct BitDecoder<T: Sample> {
+
     /// Tells how many samples per bit are at least expected
     min_number_of_samples_per_bit: usize,
     /// Tells how many samples per bit are at most expected
@@ -29,17 +32,13 @@ pub(crate) struct BitDecoder<T: Sample> {
     is_high: bool,
     /// Tells if a state change in the middle of the bit is currently detected. Would be a 0
     has_change_in_middle_bit: bool,
-
-    one_counts: usize,
-    one_counts_2: usize,
-    zero_counts: usize,
 }
 
 
 impl<T: Sample> BitDecoder<T> {
     /// Constructor
     pub(crate) fn new(sample_rate: f64) -> Self {
-        let o = Self {
+        Self {
             max_number_of_samples_per_bit: max_sample_count_for_bit(&sample_rate),
             min_number_of_samples_per_bit: min_sample_count_for_bit(&sample_rate),
             max_number_of_samples_per_half_bit: max_sample_count_for_halfbit(&sample_rate),
@@ -50,16 +49,7 @@ impl<T: Sample> BitDecoder<T> {
             sample_count_in_bit: 0,
             is_high: false,
             has_change_in_middle_bit: false,
-            one_counts: 0,
-            one_counts_2: 0,
-            zero_counts: 0,
-        };
-        println!("max {}", o.max_number_of_samples_per_bit);
-        println!("min {}", o.min_number_of_samples_per_bit);
-        println!("maxhalf {}", o.max_number_of_samples_per_half_bit);
-        println!("minhalf {}", o.min_number_of_samples_per_half_bit);
-
-        o
+        }
     }
     /// If anything unexpected is received from audio, invalidate will reset the bit detector to
     /// prevent reading wrong data if the audio timecode is not clear
@@ -73,20 +63,30 @@ impl<T: Sample> BitDecoder<T> {
     /// Every audio sample-point that is received is pushed in this function. It will return if a bit
     /// is detected by returning true (1) or false (0)
     /// The function feeds and handles detection of audio-level for high and low as well as bit-heartbeat detection
-    pub(crate) fn push_sample(&mut self, sample: T) -> Option<bool> {
+    pub(crate) fn push_sample(&mut self, sample: T, index: usize, images: &mut [AudioImage]) -> Option<bool> {
+        images.iter_mut().for_each(|image| {
+            image.push_threashold(index, self.sample_bounds.get_threshold())
+        });
         if let Some(is_high) = self.sample_bounds.is_high(sample) {
             // A sample-level (high/low) is detected by sample_bounds.
-            self.handle_received_level(is_high)
+            let (bit, has_error) = self.handle_received_level(is_high);
+            images.iter_mut().for_each(|image| {
+                image.push_bit(index, bit);
+                if has_error != 0 {
+                    image.push_error(index, has_error);
+                }
+            });
+            bit
         } else {
             // sample_bounds is currently not able to tell if a sample is high or low. Continue to push samples in the sample_bounds to detect
             None
         }
     }
     /// Handles an audio sample point that was detected as high or low
-    fn handle_received_level(&mut self, is_high: bool) -> Option<bool> {
+    fn handle_received_level(&mut self, is_high: bool) -> (Option<bool>, usize) {
         if !self.heartbeat_in_sync {
             if !self.zero_detector.is_end_of_zero(&is_high) {
-                return None;
+                return (None, 0);
             }
             self.heartbeat_in_sync = true;
             self.reset_to_start_of_bit();
@@ -95,35 +95,36 @@ impl<T: Sample> BitDecoder<T> {
         self.sample_count_in_bit += 1;
         let state_changed = self.is_state_change(&is_high);
         match self.next_expected_event() {
-            ExpectedEvents::MustBeSteady => {
+            ExpectedEvents::MustBeSteadyOne => {
                 if state_changed {
                     self.invalidate();
+                    return (None, 1);
                 }
-                None
+                (None, 0)
+            }
+            ExpectedEvents::MustBeSteadyTwo => {
+                if state_changed {
+                    self.invalidate();
+                    return (None, 2);
+                }
+                (None, 0)
             }
             ExpectedEvents::CanChangeInMiddle => {
                 if state_changed {
-                    self.one_counts+=1;
                     self.has_change_in_middle_bit = true;
                 }
-                None
+                (None, 0)
             }
             ExpectedEvents::CanChangeInEnd => {
                 if state_changed {
                     let bit = self.has_change_in_middle_bit;
                     self.reset_to_start_of_bit();
-                    if bit{
-                        self.one_counts_2+=1;
-                    }else{
-                        self.zero_counts+=1;
-                    }
-                    println!("{} {} {}",self.one_counts,self.one_counts_2,self.zero_counts);
-                    Some(bit)
-                } else { None }
+                    (Some(bit), 0)
+                } else { (None, 0) }
             }
             ExpectedEvents::Overdue => {
                 self.invalidate();
-                None
+                (None, 3)
             }
         }
     }
@@ -144,16 +145,16 @@ impl<T: Sample> BitDecoder<T> {
     /// Tells what event is expected by the received sample-point
     fn next_expected_event(&self) -> ExpectedEvents {
         if self.sample_count_in_bit < self.min_number_of_samples_per_half_bit {
-            return ExpectedEvents::MustBeSteady;
+            return ExpectedEvents::MustBeSteadyOne;
         }
         if self.sample_count_in_bit <= self.max_number_of_samples_per_half_bit {
             if self.has_change_in_middle_bit {
-                return ExpectedEvents::MustBeSteady;
+                return ExpectedEvents::MustBeSteadyTwo;
             }
             return ExpectedEvents::CanChangeInMiddle;
         }
         if self.sample_count_in_bit < self.min_number_of_samples_per_bit {
-            return ExpectedEvents::MustBeSteady;
+            return ExpectedEvents::MustBeSteadyTwo;
         }
         if self.sample_count_in_bit <= self.max_number_of_samples_per_bit {
             return ExpectedEvents::CanChangeInEnd;
@@ -166,7 +167,9 @@ impl<T: Sample> BitDecoder<T> {
 /// When analyzing sample by sample, this tells what event the BitDecoder is waiting for
 enum ExpectedEvents {
     /// The next received sample must have the same state as te original
-    MustBeSteady,
+    MustBeSteadyOne,
+    // TODO delete
+    MustBeSteadyTwo,
     /// The next received sample might change the state in the middle of the bit indicating a 1
     CanChangeInMiddle,
     /// The next received sample might change the state indicating the end of the bit
