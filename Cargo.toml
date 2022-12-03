@@ -1,0 +1,20 @@
+[package]
+name = "timecode_coder"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+intbits = "0.2.0"
+num-traits = "0.2.15"
+
+[dev-dependencies]
+wav = "1.0.0"
+
+[features]
+decode_ltc = []
+encode_ltc = []
+debug = []
+code_ltc = ["decode_ltc", "encode_ltc"]
+default = ["debug", "decode_ltc", "encode_ltc"]
