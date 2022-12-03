@@ -1,3 +1,5 @@
+#![no_std]
+
 use crate::ltc_decoder::bit_decoder::sample_bounds::SampleBounds;
 use crate::ltc_decoder::bit_decoder::sample_rater::*;
 use crate::ltc_decoder::bit_decoder::zero_detector::ZeroDetector;
@@ -11,7 +13,6 @@ mod threshold_cross_detector;
 
 /// Reads sample by sample, detects the heartbeat of bits in ltc stream and returns 0s and 1s
 pub(crate) struct BitDecoder<T: Sample> {
-
     /// Tells how many samples per bit are at least expected
     min_number_of_samples_per_bit: usize,
     /// Tells how many samples per bit are at most expected

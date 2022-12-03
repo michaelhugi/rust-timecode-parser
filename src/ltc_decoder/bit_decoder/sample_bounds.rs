@@ -1,5 +1,7 @@
-use std::cmp::{max, min};
-use std::ops::Deref;
+#![no_std]
+
+use core::cmp::{max, min};
+use core::ops::Deref;
 
 use crate::ltc_decoder::Sample;
 
@@ -21,6 +23,7 @@ pub(crate) struct SampleBounds<T: Sample> {
 
 impl<T: Sample> SampleBounds<T> {
     pub(crate) fn get_threshold(&self) -> Option<T> {
+                let v = vec![0,3,2];
         if self.valid {
             Some(self.threshold)
         } else {

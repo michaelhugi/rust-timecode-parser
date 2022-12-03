@@ -1,6 +1,6 @@
 #![no_std]
 
-use std::time::Duration;
+use core::time::Duration;
 use crate::ltc_decoder::bit_decoder::sample_bounds::SampleBounds;
 use crate::ltc_decoder::bit_decoder::zero_detector::ZeroDetector;
 use crate::ltc_decoder::Sample;
