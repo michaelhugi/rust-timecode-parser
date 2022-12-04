@@ -1,6 +1,6 @@
 [package]
 name = "timecode-coder"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["michaelhugi <michael.hugi@koeenix-band.ch>"]
 edition = "2021"
 description = "A pure Rust no_std library for decoding and encoding timecode in real-time"
