@@ -8,7 +8,7 @@ Add dependency to Cargo.toml
 
 ```toml
 [dependencies]
-timecode-coder = { version = "0.1.0", features = ["decode_ltc"] }
+timecode-coder = { version = "x.x.x", features = ["decode_ltc"] }
 ```
 
 Let's say you have a function that receives buffers from your audio interface:
